@@ -1,7 +1,7 @@
 # mymy-claudemd
 项目开发集大成之作的CLAUDE.md
 
-```markdown
+````markdown
 ## 当前本地 Claude code 运行环境
 - 当前电脑操作系统是windows 11
 - 运行Claude code的终端是PowerShell 7
@@ -85,4 +85,4 @@ Push 默认不需要事先询问用户 — commit 合理、分支是 feature 分
 
 两种前缀视觉上立刻能分辨"这分支来自 worktree 还是 standalone"。
 
-```
+````
