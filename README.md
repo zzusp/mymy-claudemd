@@ -1,5 +1,6 @@
 # mymy-claudemd
-项目开发集大成之作的CLAUDE.md
+
+软件开发 CLAUDE.md 集大成之作
 
 ````markdown
 ## 当前本地 Claude code 运行环境
