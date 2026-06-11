@@ -22,9 +22,10 @@
 10. **行为变了就同步文档**：改逻辑 / 接口 / env 顺手更新 README 和部署说明
 11. **用过即修**：按文档 / 脚本执行撞到错，修问题 + 同步更新文档 / 脚本，下次直接可用
 12. **持续沉淀**：用户画像 / 使用习惯 / 项目隐性规则 / 反复踩的坑 / 外部资源，触发自动记忆（auto memory）归档
-13. **先论后证**：结论性陈述(bug 根因 / 分析判断 / 验证结果 / 事实)先给结论、再附可核验证据(`file:line` / 命令输出 / 断言结论正确的最小验证)
+13. **先论后证**：结论性陈述(bug 根因 / 分析判断 / 验证结果 / 事实)先给结论、再附可核验证据(`file:line` / 命令输出 / 断言结论正确的最小验证)。**工具的"成功"回执不算证据**：声称已落盘 / 已提交 / 已开 PR / 已删除前，用一条独立只读命令拿 ground-truth(`ls` 看字节数 / `git status` / `gh pr view --json url,state`)——退化或异常的工具会返回假成功
 14. **分析无 ground-truth，靠反偏置兜底**：纯分析判断(没有代码可编译 / 测试当场证伪)时，结论最易被确认偏误 + 讨好式假收敛带偏。两条栏杆：(a) 主动找**反证**，不只堆支持证据——找不到反证 ≠ 结论成立，只是"暂未找到"；(b) 证据不足就标**"未收敛 / 盲点"**，不强凑皆大欢喜的中庸结论。多候选时 ≥3 并给排除理由(无编译器兜底，标准更严)
-15. **指令不扩大解读**：给的是具体动作(跑某命令 / 改某文件)就只做那个、做完即停；不从旁边的模糊话("开始今天的工作")脑补出大任务，不主动翻 git / TODO / 工作区去"找活干"。指令真模糊时先看最近上下文取最省力解释 + 一句话确认再动手，别先烧一堆 tool call 分析完再问——既走偏方向，又白占上下文窗口。
+15. **指令不扩大解读**：给的是具体动作(跑某命令 / 改某文件)就只做那个、做完即停；不从旁边的模糊话("开始今天的工作")脑补出大任务，不主动翻 git / TODO / 工作区去"找活干"。指令真模糊时先看最近上下文取最省力解释 + 一句话确认再动手，别先烧一堆 tool call 分析完再问——既走偏方向，又白占上下文窗口。给了明确动作指令(清理 / 杀进程 / 删除)且根因已定位时，直接按已知线索动手，别为"绝对安全"先把相关进程 / 文件的来源谱系全考证一遍；有误伤风险一句话提示即可（栽过：用户说"清理"，却去走父进程链做"进程考古"被连续打断）。
+16. **会话退化就换会话、先保产出**：超长会话会触发上下文退化，信号——工具结果被截断 / 乱码、Read 返回明显是占位的内容(如 `// placeholder`)、Write 声称成功但后续找不到文件、`tool result limit reached`、一条消息里多个工具只执行了第一个。出现任一即判定当前会话产出不可信：立刻停止硬推，先把关键改动 / 结论落盘或落 PR，再告知用户开新会话续做，不要在已退化的会话里继续硬撑（栽过：卡死 2.5h 且改动 / 交接文档全丢）。
 
 ## 工作模式
 
@@ -69,7 +70,7 @@ docs/
 
 **改代码就要兑现的 3 条 ship 硬线**（每次提交 / PR 无条件适用，都是栽过才立的）：
 1. **发 PR / 提交前必须本地实跑过**：代码改动要本地真跑一遍（起服务 / 跑命令 / 跑测试）、看到预期结果才算完，没跑不准发，不"留待部署后跑"（2026-04-24 mapping-unit-rename 教训）
-2. **push 前查 PR state**：`gh pr view --json state,mergedAt`（无参自动取当前分支的 PR） 确认没 push 到已合并的 PR branch；已合就新开 PR 续修订
+2. **push 前查 PR state**：`gh pr view --json state,mergedAt`（无参自动取当前分支的 PR） 确认没 push 到已合并的 PR branch；已合就新开 PR 续修订。声称"PR 已创建 / 已更新"必须附本轮 `gh` 真实输出(URL + number + state)，不靠记忆复述；若 `gh` 返回 `no pull requests found`，先核对分支名是否异常(如 worktree 双重前缀 `worktree-worktree-*`)再下结论，别把"查不到"脑补成"已存在"
 3. **PR body 自包含**：写清改了什么（`file:line`）+ 你实跑看到的证据，reviewer 不翻别处也能判断
 
 **必须走 feature branch + PR** 的场景：
@@ -85,5 +86,28 @@ Push 默认不需要事先询问用户 — commit 合理、分支是 feature 分
 - **非 worktree feature 分支**：`feature/<name>`，**不论 feature / bug / refactor**——前缀只是工作流标识，任务类型由 PR 标题 / `plan.md` / commit message 表达
 
 两种前缀视觉上立刻能分辨"这分支来自 worktree 还是 standalone"。
+
+## 避坑经验（基于历史 562 次工具错误 / 155 会话统计）
+
+### Windows避坑
+- **Windows 已知坑**：`spawn` 调 npm 等 `.cmd` 必须带 `shell:true` + `windowsHide:true`（Node CVE-2024-27980 后无 shell 拒绝 spawn `.cmd`）；停进程 / 带 `/F` 等斜杠 flag 的命令走 PowerShell（Bash 工具会把 `/F` 当路径、也会误解析 here-string `@'...'@`）；依赖其成功的 git 状态变更命令（`pull` / `merge` / `checkout`）别 `>/dev/null 2>&1` 吞 stderr，改动后用显式断言验证
+- **Bash↔PowerShell 边界**：Bash 工具跑的是 Git Bash(POSIX)，用正斜杠路径 + `2>/dev/null`；禁 `2>$null` / `$null` / `-Force` / `-ErrorAction`（→ `ambiguous redirect`）、禁 Windows 反斜杠路径（末尾 `\"` 会转义掉引号 → `unexpected EOF`）——要反斜杠路径 / `$null` / cmdlet，一律走 PowerShell 工具；PowerShell 工具内多条语句用 `;` 或 `&&` 连、别用裸换行分隔（→ `is not recognized as a cmdlet`），也别在 PowerShell 里写 `/tmp/...` 这类 bash 路径
+- **Python 编码**：Windows Python 默认 GBK 编码，print `↔` / emoji 等非 GBK 字符会 `UnicodeEncodeError`——设 `PYTHONIOENCODING=utf-8` 且 `sys.stdout.reconfigure(encoding='utf-8')`，或别往 stdout 打非 ASCII
+
+### 工具调用避坑（通用）
+
+**文件编辑工具（占比最高，常栽这里）**
+- 本会话首次对某路径 Edit/Write 前必先 Read 该确切路径（哪怕内容已从 Grep / 上文得知）——`File has not been read yet` 是头号工具错（128 次）
+- Edit 撞 `String to replace not found` / `not unique`（27 次）：别改 old_string 反复试，重新 Read 当前确切字节、带足上下文保唯一再编辑；撞 `File has been modified since read`（linter / CRLF 改过）同样重读再改
+- background 后台会话改文件前先 `EnterWorktree`、编辑落 worktree 路径——`hasn't isolated its changes yet`（24 次）
+
+**Read / Glob / sleep**
+- Read 大文件（>256KB 或 >25000 tokens）必带 `offset` / `limit` 或改用 Grep，别整文件读（7 次超限）
+- Glob 宽 `**/x` 模式在大仓库 20s 超时（8 次）——缩到具体子目录或更窄 pattern
+- 前台 `sleep` 会被 Block（6 次）——等条件用 Monitor 的 until-loop 或 `run_in_background`，不要前台 sleep
+
+**工具参数 / schema**
+- 参数别串台：Read 不收 `pattern` / `path`（那是 Grep 的）、Bash 不收 `file_path`；调 deferred 工具（Monitor 等）前先用 ToolSearch 取 schema，否则 `schema was not sent to the API`
+- AskUserQuestion：每题选项 ≤4 个、必填字段（`questions` 及每题 `question`）别漏（9 次 schema 错）
 
 ````
