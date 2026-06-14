@@ -25,7 +25,6 @@
 13. **先论后证**：结论性陈述(bug 根因 / 分析判断 / 验证结果 / 事实)先给结论、再附可核验证据(`file:line` / 命令输出 / 断言结论正确的最小验证)。**工具的"成功"回执不算证据**：声称已落盘 / 已提交 / 已开 PR / 已删除前，用一条独立只读命令拿 ground-truth(`ls` 看字节数 / `git status` / `gh pr view --json url,state`)——退化或异常的工具会返回假成功
 14. **分析无 ground-truth，靠反偏置兜底**：纯分析判断(没有代码可编译 / 测试当场证伪)时，结论最易被确认偏误 + 讨好式假收敛带偏。两条栏杆：(a) 主动找**反证**，不只堆支持证据——找不到反证 ≠ 结论成立，只是"暂未找到"；(b) 证据不足就标**"未收敛 / 盲点"**，不强凑皆大欢喜的中庸结论。多候选时 ≥3 并给排除理由(无编译器兜底，标准更严)
 15. **指令不扩大解读**：给的是具体动作(跑某命令 / 改某文件)就只做那个、做完即停；不从旁边的模糊话("开始今天的工作")脑补出大任务，不主动翻 git / TODO / 工作区去"找活干"。指令真模糊时先看最近上下文取最省力解释 + 一句话确认再动手，别先烧一堆 tool call 分析完再问——既走偏方向，又白占上下文窗口。给了明确动作指令(清理 / 杀进程 / 删除)且根因已定位时，直接按已知线索动手，别为"绝对安全"先把相关进程 / 文件的来源谱系全考证一遍；有误伤风险一句话提示即可（栽过：用户说"清理"，却去走父进程链做"进程考古"被连续打断）。
-16. **会话退化就换会话、先保产出**：超长会话会触发上下文退化，信号——工具结果被截断 / 乱码、Read 返回明显是占位的内容(如 `// placeholder`)、Write 声称成功但后续找不到文件、`tool result limit reached`、一条消息里多个工具只执行了第一个。出现任一即判定当前会话产出不可信：立刻停止硬推，先把关键改动 / 结论落盘或落 PR，再告知用户开新会话续做，不要在已退化的会话里继续硬撑（栽过：卡死 2.5h 且改动 / 交接文档全丢）。
 
 ## 工作模式
 
@@ -86,6 +85,17 @@ Push 默认不需要事先询问用户 — commit 合理、分支是 feature 分
 - **非 worktree feature 分支**：`feature/<name>`，**不论 feature / bug / refactor**——前缀只是工作流标识，任务类型由 PR 标题 / `plan.md` / commit message 表达
 
 两种前缀视觉上立刻能分辨"这分支来自 worktree 还是 standalone"。
+
+## worktree 工作规范
+1. **起点要新**：建 worktree 前先把 base 分支拉到最新——默认基于主仓当前/默认分支（先 `git fetch` 对齐 origin 再开 worktree）；用户指定了签出分支就以该指定分支的最新代码为 base，不基于陈旧本地状态开发。（`claude --worktree <name>` 原生即基于 `origin/HEAD` 新建分支 `worktree-<name>` 于 `.claude/worktrees/`，无远程时回退本地 HEAD；要始终基于本地 HEAD，在 `.claude/settings.json` 设 `worktree.baseRef`，仅收 `"fresh"`/`"head"`。`#<PR号>` 则基于该 PR 建 `pr-<号>`。）
+2. **隔离不碰主仓**：worktree 内只动自己的 `worktree-<name>` 分支，绝不 checkout / commit / 改写主仓库当前分支及代码——主仓全程保持干净。
+3. **收尾自动收口**：任务验证完成（matrix 全绿 / 实跑见预期）后自动收口，无需再询问，收口方式按优先级判定——① 用户明确要求了（要不要开 PR / 直接 push 等）就照用户要求；② 用户没说且改动 trivial（docs / 小 fix <50 行 / config / 格式化）→ commit + push 不开 PR；③ 用户没说且非 trivial → 默认开 PR。无论哪种都无条件兑现上面 3 条 ship 硬线（本地实跑过 / push 前查 PR state / PR body 自包含）；开了 PR 用 `gh pr view --json url,state` 拿真实输出回报。
+4. **环境准备与验证（通用，worktree 不继承主检出运行态）**：worktree 只带版本库内容，`node_modules` / gitignore 的环境文件 / 构建缓存都得自己备，否则「验证失败」多半是环境而非代码。能脚本化就脚本化（项目里若有 `setup-worktree` 之类一把梭脚本优先用），手动则按下面四条：
+   - **依赖**：`npm install --prefer-offline`（暖缓存通常十几秒）。**别图快整体 junction / symlink 主检出的 `node_modules`**——workspace monorepo 里 `node_modules/<scope>/*` 是指回各 package 源码的链接，整体复用会让 worktree 编译到**主检出的源码**而非本分支改动（实测 `npm install` 会正确在 worktree 内建本地 workspace 链）。单包仓库无此问题、可直接软链复用。
+   - **环境文件**：gitignore 的 `.env` 等不随 worktree 带过来，否则连不上 DB / 服务起不来。**优先用项目根 `.worktreeinclude`**（.gitignore 语法）——Claude Code 建 worktree（`claude --worktree`/`EnterWorktree`/子代理/桌面）时自动拷「匹配且被忽略」的文件，免手动复制；**切勿把 `node_modules` 写进去**（见上条）。手动 `git worktree add` 不走 `.worktreeinclude`，需自己复制 `.env`。
+   - **构建缓存**：`next build`/`vite build` 等与同目录 dev server 并存会假报错（如 Next 在 "Collecting page data" 报 `Cannot find module './chunks/...'`）；验证 / 构建前先清一次缓存目录（`.next`/`dist`），别当成代码错去查。
+   - **端口**：起 verify server 用空闲端口（`CONSOLE_PORT` 之类），别撞主检出 / 其它 worktree 占用的默认口（`EADDRINUSE` 会被误读成「服务异常退出」）。
+   - **共享远程资源别就地验证**：多 worktree 常共用同一远程 dev 库 / 服务。验 schema / 迁移 / 鉴权用**一次性干净库**（建库 → 跑全量迁移 → 用完 `DROP ... WITH (FORCE)`），既 faithful 又零污染；并行 worktree 共享同一库时，迁移序号 / 表约束这类「全局单例」会互相覆盖——新增取**未占用编号** + 重建约束时列**当前全集**。
 
 ## 避坑经验（基于历史 562 次工具错误 / 155 会话统计）
 
