@@ -30,6 +30,7 @@
 
 - **要留证据链的重型验证**（改动会迭代多轮 / risky / 多业务形态各需独立验证）→ 按 `项目产物归档规范` 中 `docs/acceptance/<name>/` 下划分规范：用例清单进 `matrix.csv`（case × round 的 PASS/FAIL 总表，状态以此为准）+ 每轮 `round-N.md`（记 PASS 证据）+ 跨轮 `scripts/` + 全绿后的`report.md`，其他可选。
 - **复杂任务先分析**（scope 大 / 跨服务 / schema 变更 / 架构重构 / 改动>=50行且跨文件）→ 先全面分析清楚、落档 `docs/spec/<topic>.md`。
+- **goal.md**：大型/多轮任务无法一轮完整实现，需维护`goal.md`确保不偏离总目标。先拆解`sub goal matrix`再subagent实现并验证通过，用户补充信息（调整/细节等），再更新`sub goal matrix`进入新一轮。每轮需要记录`sub goal`进展，遇到重大决策以及关键信息都记录一下。注意：*sub goal round不同于用例 × round*。
 
 破坏性/风险性脚本需带 `--check` 零副作用自检，执行前先跑一次自检。部署按 `docs/ops/` runbook 走，不用记命令。
 
@@ -63,7 +64,6 @@ docs/
 ```
 
 **命名**：英文小写 + 连字符、3–6 词、不重复目录类型（`spec/plan-foo.md` 不写成 `spec-plan-foo.md`）；`reference/` 豁免。
-**goal.md**：当遇到大型/多轮任务无法一轮完成交付，需维护该文件确保不偏离总目标。先拆解`sub goal matrix`再subagent实现，用户检查后补充信息，再更新`sub goal matrix`进入新一轮实现。每轮需要记录`sub goal`进展，遇到重大决策以及关键信息也记录一下。*sub goal round不同于用例 × round*
 
 ## Git 工作流（单人开发分级）
 
