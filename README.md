@@ -46,6 +46,7 @@ docs/
 ├── acceptance/        # 验收方案/结果/脚本/证据/特性复盘；红线：大 binary 不入库 + 再生成配方 + 源头治理
 │   ├── _shared/       # 跨 feature 复用的 e2e 工具包(auth/env/ui/api/report);≥2 feature 用过才进
 │   └── <feature>/
+│       ├── goal.md            # [总目标 + 唯一`sub goal matrix` + `sub goal`进展 + 重大决策 + 重要信息]
 │       ├── plan.md            # [需求 + 方案 + 改动 + 验证]或[症状 + 根因 + 同根因 + 修复 + 验证]
 │       ├── matrix.csv         # 用例 × round 的 PASS/FAIL 总表，状态以此为准；证据在 round-N.md
 │       ├── report.md          # 全绿才写
@@ -62,6 +63,7 @@ docs/
 ```
 
 **命名**：英文小写 + 连字符、3–6 词、不重复目录类型（`spec/plan-foo.md` 不写成 `spec-plan-foo.md`）；`reference/` 豁免。
+**goal.md**：当遇到大型/多轮任务无法一轮完成交付，需维护该文件确保不偏离总目标。先拆解`sub goal matrix`再subagent实现，用户检查后补充信息，再更新`sub goal matrix`进入新一轮实现。每轮需要记录`sub goal`进展，遇到重大决策以及关键信息也记录一下。*sub goal round不同于用例 × round*
 
 ## Git 工作流（单人开发分级）
 
